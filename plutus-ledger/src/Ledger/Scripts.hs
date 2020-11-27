@@ -27,6 +27,8 @@ module Ledger.Scripts(
     evaluateScript,
     runScript,
     runMonetaryPolicyScript,
+    applyValidator,
+    applyMonetaryPolicyScript,
     -- * Script wrappers
     mkValidatorScript,
     Validator,
@@ -144,6 +146,9 @@ instance Ord Script where
 
 instance Haskell.Ord Script where
     a `compare` b = BSL.toStrict (serialise a) `compare` BSL.toStrict (serialise b)
+
+instance Haskell.Show Script where
+    showsPrec _ _ = showString "<Script>"
 
 instance NFData Script
 
@@ -346,6 +351,16 @@ newtype Context = Context Data
     deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)
 
+-- | Apply a validator script to its arguments
+applyValidator
+    :: Context
+    -> Validator
+    -> Datum
+    -> Redeemer
+    -> Script
+applyValidator (Context valData) (Validator validator) (Datum datum) (Redeemer redeemer) =
+    ((validator `applyScript` (fromCompiledCode $ liftCode datum)) `applyScript` (fromCompiledCode $ liftCode redeemer)) `applyScript` (fromCompiledCode $ liftCode valData)
+
 -- | Evaluate a validator script with the given arguments, returning the log.
 runScript
     :: (MonadError ScriptError m)
@@ -354,9 +369,16 @@ runScript
     -> Datum
     -> Redeemer
     -> m [Haskell.String]
-runScript (Context valData) (Validator validator) (Datum datum) (Redeemer redeemer) = do
-    let appliedValidator = ((validator `applyScript` (fromCompiledCode $ liftCode datum)) `applyScript` (fromCompiledCode $ liftCode redeemer)) `applyScript` (fromCompiledCode $ liftCode valData)
-    evaluateScript appliedValidator
+runScript context validator datum redeemer = do
+    evaluateScript (applyValidator context validator datum redeemer)
+
+-- | Apply a validation 'Context' to the 'MonetaryPolicy'
+applyMonetaryPolicyScript
+    :: Context
+    -> MonetaryPolicy
+    -> Script
+applyMonetaryPolicyScript (Context valData) (MonetaryPolicy validator) =
+    validator `applyScript` (fromCompiledCode $ liftCode valData)
 
 -- | Evaluate a monetary policy script with just the validation context, returning the log.
 runMonetaryPolicyScript
@@ -364,9 +386,8 @@ runMonetaryPolicyScript
     => Context
     -> MonetaryPolicy
     -> m [Haskell.String]
-runMonetaryPolicyScript (Context valData) (MonetaryPolicy validator) = do
-    let appliedValidator = validator `applyScript` (fromCompiledCode $ liftCode valData)
-    evaluateScript appliedValidator
+runMonetaryPolicyScript context mps = do
+    evaluateScript (applyMonetaryPolicyScript context mps)
 
 -- | @()@ as a datum.
 unitDatum :: Datum

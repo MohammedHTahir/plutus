@@ -102,9 +102,9 @@ scriptEvents :: EmulatorEventFold [ScriptValidationEvent]
 scriptEvents = preMapMaybe (preview (eteEvent . chainEvent) >=> getEvent) (concat <$> L.list) where
     getEvent :: ChainEvent -> Maybe [ScriptValidationEvent]
     getEvent = \case
-        TxnValidate _ _ es       -> Just es
+        TxnValidate _ _ es         -> Just es
         TxnValidationFail _ _ _ es -> Just es
-        SlotAdd _                -> Nothing
+        SlotAdd _                  -> Nothing
 
 -- | The state of a contract instance, recovered from the emulator log.
 instanceState ::
@@ -236,8 +236,8 @@ chainEvents = preMapMaybe (preview (eteEvent . chainEvent)) L.list
 blockchain :: EmulatorEventFold [[Tx]]
 blockchain =
     let step (currentBlock, otherBlocks) = \case
-            SlotAdd _               -> ([], currentBlock : otherBlocks)
-            TxnValidate _ txn _       -> (txn : currentBlock, otherBlocks)
+            SlotAdd _           -> ([], currentBlock : otherBlocks)
+            TxnValidate _ txn _ -> (txn : currentBlock, otherBlocks)
             TxnValidationFail{} -> (currentBlock, otherBlocks)
         initial = ([], [])
         extract (currentBlock, otherBlocks) =

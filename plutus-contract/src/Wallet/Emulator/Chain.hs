@@ -25,12 +25,13 @@ import           Data.Foldable                 (traverse_)
 import           Data.List                     (partition, (\\))
 import           Data.Maybe                    (isNothing)
 import           Data.Text.Prettyprint.Doc
-import           Data.Traversable          (for)
-import           GHC.Generics              (Generic)
-import           Ledger                    (Block, Blockchain, Slot (..), Tx (..), TxId, txId, ScriptValidationEvent)
-import qualified Ledger.Index              as Index
-import qualified Ledger.Interval           as Interval
-import Language.Plutus.Contract.Util (uncurry3)
+import           Data.Traversable              (for)
+import           GHC.Generics                  (Generic)
+import           Language.Plutus.Contract.Util (uncurry3)
+import           Ledger                        (Block, Blockchain, ScriptValidationEvent, Slot (..), Tx (..), TxId,
+                                                txId)
+import qualified Ledger.Index                  as Index
+import qualified Ledger.Interval               as Interval
 
 -- | Events produced by the blockchain emulator.
 data ChainEvent =
@@ -46,7 +47,7 @@ instance Pretty ChainEvent where
     pretty = \case
         TxnValidate i _ _         -> "TxnValidate" <+> pretty i
         TxnValidationFail i _ e _ -> "TxnValidationFail" <+> pretty i <> colon <+> pretty e
-        SlotAdd sl              -> "SlotAdd" <+> pretty sl
+        SlotAdd sl                -> "SlotAdd" <+> pretty sl
 
 -- | A pool of transactions which have yet to be validated.
 type TxPool = [Tx]

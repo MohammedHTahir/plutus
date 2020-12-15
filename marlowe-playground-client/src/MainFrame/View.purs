@@ -20,11 +20,11 @@ import HaskellEditor.View (otherActions, render) as HaskellEditor
 import Home as Home
 import Icons (Icon(..), icon)
 import JavascriptEditor.View as JSEditor
-import MarloweEditor.View as MarloweEditor
-import MainFrame.Types (Action(..), ChildSlots, ModalView(..), State, View(..), _marloweEditorState, _actusBlocklySlot, _authStatus, _blocklySlot, _createGistResult, _hasUnsavedChanges, _haskellState, _javascriptState, _projectName, _simulationState, _view, _walletSlot)
+import MainFrame.Types (Action(..), ChildSlots, ModalView(..), State, View(..), _actusBlocklySlot, _authStatus, _blocklySlot, _createGistResult, _hasUnsavedChanges, _haskellState, _javascriptState, _marloweEditorState, _projectName, _simulationState, _view, _walletSlot)
 import Marlowe (SPParams_)
 import Marlowe.ActusBlockly as AMB
 import Marlowe.Blockly as MB
+import MarloweEditor.View as MarloweEditor
 import Modal.View (modal)
 import Network.RemoteData (_Loading, _Success)
 import Prelude (const, eq, negate, unit, ($), (<<<), (<>))
@@ -131,6 +131,8 @@ render settings state =
   otherActions Simulation = [ renderSubmodule _simulationState SimulationAction Simulation.otherActions state ]
 
   otherActions JSEditor = [ renderSubmodule _javascriptState JavascriptAction JSEditor.otherActions state ]
+
+  otherActions MarloweEditor = [ renderSubmodule _marloweEditorState MarloweEditorAction MarloweEditor.otherActions state ]
 
   otherActions BlocklyEditor =
     [ div [ classes [ group ] ]

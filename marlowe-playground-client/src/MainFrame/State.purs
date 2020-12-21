@@ -319,6 +319,10 @@ handleAction s (HaskellAction action) = do
 handleAction s (MarloweEditorAction action) = do
   toMarloweEditor (MarloweEditor.handleAction s action)
   case action of
+    ME.SendToSimulator -> do
+      mContents <- query _marloweEditorPageSlot unit (Monaco.GetText identity)
+      for_ mContents \contents -> do
+        sendToSimulation s Marlowe contents
     -- Replicate the state of unsavedChanges from the submodule/subcomponent into the MainFrame state
     (ME.HandleEditorMessage (Monaco.TextChanged _)) -> do
       hasUnsavedChanges <- queryCurrentEditorForUnsavedChanges
@@ -352,10 +356,6 @@ handleAction settings (SimulationAction action) = do
     ST.EditHaskell -> selectView HaskellEditor
     ST.EditJavascript -> selectView JSEditor
     ST.EditActus -> selectView ActusBlocklyEditor
-    -- Replicate the state of unsavedChanges from the submodule/subcomponent into the MainFrame state
-    (ST.HandleEditorMessage (Monaco.TextChanged _)) -> do
-      hasUnsavedChanges <- queryCurrentEditorForUnsavedChanges
-      assign _hasUnsavedChanges hasUnsavedChanges
     _ -> pure unit
 
 handleAction _ SendBlocklyToSimulator = void $ query _blocklySlot unit (Blockly.GetCodeQuery unit)
@@ -379,7 +379,7 @@ handleAction settings (HandleBlocklyMessage (CurrentCode code)) = do
   --   void $ query _blocklySlot unit (Blockly.SetError "You can't send new code to a running simulation. Please go to the Simulation tab and click \"reset\" first" unit)
   -- else do
   selectView Simulation
-  void $ toSimulation $ Simulation.handleAction settings (ST.SetEditorText code)
+  void $ toSimulation $ Simulation.handleAction settings (ST.LoadContract code)
 
 handleAction settings (HandleBlocklyMessage _) = do
   -- Replicate the state of unsavedChanges from the submodule/subcomponent into the MainFrame state
@@ -400,7 +400,7 @@ handleAction settings (HandleActusBlocklyMessage (ActusBlockly.CurrentTerms flav
       case result of
         Success contractAST -> do
           selectView Simulation
-          void $ toSimulation $ Simulation.handleAction settings (ST.SetEditorText contractAST)
+          void $ toSimulation $ Simulation.handleAction settings (ST.LoadContract contractAST)
         Failure e -> void $ query _actusBlocklySlot unit (ActusBlockly.SetError ("Server error! " <> (showErrorDescription (runAjaxError e).description)) unit)
         _ -> void $ query _actusBlocklySlot unit (ActusBlockly.SetError "Unknown server error!" unit)
 
@@ -443,7 +443,7 @@ handleAction s (NewProjectAction (NewProject.CreateProject lang)) = do
   -- We reset all editors and then initialize the selected language.
   toHaskellEditor $ HaskellEditor.handleAction s $ HE.InitHaskellProject mempty
   toJavascriptEditor $ JavascriptEditor.handleAction s $ JS.InitJavascriptProject mempty
-  toSimulation $ Simulation.handleAction s $ ST.InitMarloweProject mempty
+  toMarloweEditor $ MarloweEditor.handleAction s $ ME.InitMarloweProject mempty
   void $ query _blocklySlot unit (Blockly.SetCode mempty unit)
   -- TODO: implement ActusBlockly.SetCode
   case lang of
@@ -455,7 +455,7 @@ handleAction s (NewProjectAction (NewProject.CreateProject lang)) = do
         toJavascriptEditor $ JavascriptEditor.handleAction s $ JS.InitJavascriptProject contents
     Marlowe ->
       for_ (Map.lookup "Example" StaticData.marloweContracts) \contents -> do
-        toSimulation $ Simulation.handleAction s $ ST.InitMarloweProject contents
+        toMarloweEditor $ MarloweEditor.handleAction s $ ME.InitMarloweProject contents
     _ -> pure unit
   selectView $ selectLanguageView lang
   modify_
@@ -473,7 +473,7 @@ handleAction s (DemosAction action@(Demos.LoadDemo lang (Demos.Demo key))) = do
         toJavascriptEditor $ JavascriptEditor.handleAction s $ JS.InitJavascriptProject contents
     Marlowe -> do
       for_ (preview (ix key) StaticData.marloweContracts) \contents -> do
-        toSimulation $ Simulation.handleAction s $ ST.InitMarloweProject contents
+        toMarloweEditor $ MarloweEditor.handleAction s $ ME.InitMarloweProject contents
     Blockly -> do
       for_ (preview (ix key) StaticData.marloweContracts) \contents -> do
         void $ query _blocklySlot unit (Blockly.SetCode contents unit)
@@ -559,15 +559,12 @@ sendToSimulation :: forall m. MonadAff m => SPSettings_ SPParams_ -> Lang -> Str
 sendToSimulation settings language contract = do
   assign (_simulationState <<< _source) language
   selectView Simulation
-  void $ toSimulation
-    $ do
-        Simulation.handleAction settings (ST.SetEditorText contract)
-        Simulation.handleAction settings ST.ResetContract
+  toSimulation $ Simulation.handleAction settings (ST.LoadContract contract)
 
 selectLanguageView :: Lang -> View
 selectLanguageView = case _ of
   Haskell -> HaskellEditor
-  Marlowe -> Simulation
+  Marlowe -> MarloweEditor
   Blockly -> BlocklyEditor
   Javascript -> JSEditor
   Actus -> ActusBlocklyEditor
@@ -660,7 +657,7 @@ handleGistAction settings PublishGist = do
         lift do
           toHaskellEditor $ HaskellEditor.handleAction settings $ HE.MarkProjectAsSaved
           toJavascriptEditor $ JavascriptEditor.handleAction settings $ JS.MarkProjectAsSaved
-          toSimulation $ Simulation.handleAction settings $ ST.MarkProjectAsSaved
+          toMarloweEditor $ MarloweEditor.handleAction settings $ ME.MarkProjectAsSaved
           void $ query _blocklySlot unit (Blockly.MarkProjectAsSaved unit)
           void $ query _actusBlocklySlot unit (ActusBlockly.MarkProjectAsSaved unit)
         modify_
@@ -733,7 +730,7 @@ loadGist settings gist = do
   -- Restore or reset all editors
   toHaskellEditor $ HaskellEditor.handleAction settings $ HE.InitHaskellProject $ fromMaybe mempty haskell
   toJavascriptEditor $ JavascriptEditor.handleAction settings $ JS.InitJavascriptProject $ fromMaybe mempty javascript
-  toSimulation $ Simulation.handleAction settings $ ST.InitMarloweProject $ fromMaybe mempty marlowe
+  toMarloweEditor $ MarloweEditor.handleAction settings $ ME.InitMarloweProject $ fromMaybe mempty marlowe
   case blockly of
     Nothing -> void $ query _blocklySlot unit (Blockly.SetCode mempty unit)
     Just xml -> void $ query _blocklySlot unit (Blockly.LoadWorkspace xml unit)

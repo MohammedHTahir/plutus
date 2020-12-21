@@ -67,6 +67,7 @@
           "Language/PlutusTx/IsData"
           "Language/PlutusTx/IsData/Class"
           "Language/PlutusTx/Eq"
+          "Language/PlutusTx/Either"
           "Language/PlutusTx/Functor"
           "Language/PlutusTx/Lattice"
           "Language/PlutusTx/List"

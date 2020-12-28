@@ -1,13 +1,13 @@
 module MainFrame.View where
 
 import Auth (_GithubUser, authStatusAuthRole)
-import Data.Lens (has, to, view, (^.))
+import Data.Lens (has, to, (^.))
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
 import Gists.Types (GistAction(..))
 import Halogen (ComponentHTML)
 import Halogen.ActusBlockly as ActusBlockly
-import Halogen.Blockly (_blocklyState, blockly)
+import Halogen.Blockly (blockly)
 import Halogen.Classes (aHorizontal, active, flex, fullHeight, fullWidth, group, hide, noMargins, spaceLeft, spaceRight, uppercase, vl)
 import Halogen.Classes as Classes
 import Halogen.Extra (renderSubmodule)

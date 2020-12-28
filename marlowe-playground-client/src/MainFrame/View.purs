@@ -1,13 +1,13 @@
 module MainFrame.View where
 
 import Auth (_GithubUser, authStatusAuthRole)
-import Data.Lens (has, to, (^.))
+import Data.Lens (has, to, view, (^.))
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
 import Gists.Types (GistAction(..))
 import Halogen (ComponentHTML)
 import Halogen.ActusBlockly as ActusBlockly
-import Halogen.Blockly (blockly)
+import Halogen.Blockly (_blocklyState, blockly)
 import Halogen.Classes (aHorizontal, active, flex, fullHeight, fullWidth, group, hide, noMargins, spaceLeft, spaceRight, uppercase, vl)
 import Halogen.Classes as Classes
 import Halogen.Extra (renderSubmodule)
@@ -20,7 +20,7 @@ import HaskellEditor.View (otherActions, render) as HaskellEditor
 import Home as Home
 import Icons (Icon(..), icon)
 import JavascriptEditor.View as JSEditor
-import MainFrame.Types (Action(..), ChildSlots, ModalView(..), State, View(..), _actusBlocklySlot, _authStatus, _blocklySlot, _createGistResult, _hasUnsavedChanges, _haskellState, _javascriptState, _marloweEditorState, _projectName, _simulationState, _view, _walletSlot)
+import MainFrame.Types (Action(..), BlocklySubAction(..), ChildSlots, ModalView(..), State, View(..), _actusBlocklySlot, _authStatus, _blocklySlot, _createGistResult, _hasUnsavedChanges, _haskellState, _javascriptState, _marloweEditorState, _projectName, _simulationState, _view, _walletSlot)
 import Marlowe (SPParams_)
 import Marlowe.ActusBlockly as AMB
 import Marlowe.Blockly as MB
@@ -28,6 +28,7 @@ import MarloweEditor.View as MarloweEditor
 import Modal.View (modal)
 import Network.RemoteData (_Loading, _Success)
 import Prelude (const, eq, negate, unit, ($), (<<<), (<>))
+import Prim.TypeError (class Warn, Text)
 import Servant.PureScript.Settings (SPSettings_)
 import SimulationPage.View as Simulation
 import Wallet as Wallet
@@ -134,16 +135,26 @@ render settings state =
 
   otherActions MarloweEditor = [ renderSubmodule _marloweEditorState MarloweEditorAction MarloweEditor.otherActions state ]
 
-  otherActions BlocklyEditor =
-    [ div [ classes [ group ] ]
-        [ button
-            [ onClick $ const $ Just SendBlocklyToSimulator
-            ]
-            [ text "Send To Simulator" ]
-        ]
-    ]
+  otherActions BlocklyEditor = blocklyOtherActions
 
   otherActions _ = []
+
+blocklyOtherActions ::
+  forall p.
+  Warn (Text "SCP-1647 The Send to simulator button should be disabled if there are holes in the contract. Do this once we refactor blockly as submodule (SCP-1646) as this view is far away from the BlocklyState") =>
+  Array (HTML p Action)
+blocklyOtherActions =
+  [ div [ classes [ group ] ]
+      [ button
+          [ onClick $ const $ Just $ BlocklyEditorAction $ ViewAsMarlowe
+          ]
+          [ text "View as Marlowe" ]
+      , button
+          [ onClick $ const $ Just $ BlocklyEditorAction $ SendToSimulator
+          ]
+          [ text "Send To Simulator" ]
+      ]
+  ]
 
 menuBar :: forall p. State -> HTML p Action
 menuBar state =
